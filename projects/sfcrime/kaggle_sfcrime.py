@@ -23,10 +23,10 @@ def wrangle(dataFrame, isTraining):
     return (transformed, enumIndex, categoryLabels)
 
 
-train = pd.read_csv("/Users/dmurali/Documents/Kaggle/Sanfran/train.csv",
+train = pd.read_csv("./train.csv",
                     usecols = ['Category','DayOfWeek','PdDistrict','X','Y']
                     )
-test = pd.read_csv("/Users/dmurali/Documents/Kaggle/Sanfran/test.csv",
+test = pd.read_csv("./test.csv",
                    usecols = ['DayOfWeek','PdDistrict','X','Y']
                    )
 
@@ -42,7 +42,7 @@ dfWithClass = pd.DataFrame(predicted, columns = ['Class'])
 final = pd.concat([testWrangled, dfWithClass], axis=1)
 classLabels = unIndex(categoryLabelsTraining, final['Class'])
 categoriesPredicted = pd.get_dummies(classLabels)
-categoriesPredicted.to_csv("/Users/dmurali/Documents/Kaggle/Sanfran/predictions.csv")
+categoriesPredicted.to_csv("./predictions.csv")
 print("Time taken:%.1f" % (time.time() - startTime))
 
 
