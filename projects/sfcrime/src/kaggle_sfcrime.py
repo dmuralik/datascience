@@ -6,7 +6,7 @@ from sklearn.ensemble import RandomForestClassifier
 import numpy as np
 import time
 from sklearn import cross_validation
-import scipy as sp
+import logloss
 
 #to track the performance
 startTime = time.time()
@@ -44,20 +44,14 @@ trainingWrangled, enumIndexTraining, categoryLabelsTraining = wrangle(train, Tru
 testWrangled, enumIndexTest, categoryLabelsTest = wrangle(test, False)
 
 rf = RandomForestClassifier(n_estimators=100)
-cv = cross_validation.KFold(len(train), n_folds=5, indices=False)
-results = []
-for traincv, testcv in cv:
-    probas = rf.fit(trainingWrangled[traincv], enumIndexTraining[traincv]).predict_proba(trainingWrangled[testcv])
-    results.append(metrics.log_loss(enumIndexTraining[testcv], [x[1] for x in probas]))
+rf.fit(trainingWrangled, enumIndexTraining)
 
-print(results)
-#rf.fit(trainingWrangled, enumIndexTraining)
-#predicted = rf.predict(testWrangled)
-#dfWithClass = pd.DataFrame(predicted, columns = ['Class'])
-#final = pd.concat([testWrangled, dfWithClass], axis=1)
-#classLabels = unIndex(categoryLabelsTraining, final['Class'])
-#categoriesPredicted = pd.get_dummies(classLabels)
-#categoriesPredicted.to_csv("./data/predictions.csv")
+predicted = rf.predict(testWrangled)
+dfWithClass = pd.DataFrame(predicted, columns = ['Class'])
+final = pd.concat([testWrangled, dfWithClass], axis=1)
+classLabels = unIndex(categoryLabelsTraining, final['Class'])
+categoriesPredicted = pd.get_dummies(classLabels)
+categoriesPredicted.to_csv("./data/predictions.csv")
 print("Time taken:%.1f seconds" % (time.time() - startTime))
 
 
