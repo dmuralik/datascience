@@ -6,7 +6,9 @@ from sklearn.ensemble import RandomForestClassifier
 import numpy as np
 import time
 from sklearn import cross_validation
+from sklearn.metrics import log_loss
 import logloss
+import sys
 
 #to track the performance
 startTime = time.time()
@@ -15,47 +17,58 @@ startTime = time.time()
 def wrangle(dataFrame, isTraining):
     dayOfWeekChanged = pd.get_dummies(dataFrame['DayOfWeek'])
     pdDistrictChanged = pd.get_dummies(dataFrame['PdDistrict'])
+    dayOrNight = ['Night' if(hr > 22 or hr <= 6) else 'Day' for hr in pd.DatetimeIndex(dataFrame['Dates']).hour]
+    dayOrNightChanged = pd.get_dummies(dayOrNight)
+    month = pd.DatetimeIndex(dataFrame['Dates']).month
+    monthFrame = pd.DataFrame(month, columns = ['Month'])
+    year = pd.DatetimeIndex(dataFrame['Dates']).year
+    yearFrame = pd.DataFrame(year, columns = ['Year'])
     enumIndex = categoryLabels = []
+    dropped = dataFrame.drop(['Dates','DayOfWeek', 'PdDistrict'], axis=1)
+    interimFrame = pd.concat([dropped,dayOfWeekChanged, pdDistrictChanged, dayOrNightChanged, monthFrame, yearFrame], axis=1)
     if(isTraining):
-        enumIndex,categoryLabels = pd.factorize(dataFrame['Category'])
+        enumIndex,categoryLabels = pd.factorize(interimFrame['Category'])
         categoryChanged = pd.DataFrame(enumIndex, columns = ['Category'])
-        dropped = dataFrame.drop(['DayOfWeek', 'PdDistrict', 'Category'], axis=1)
-        transformed = pd.concat([dropped, dayOfWeekChanged, pdDistrictChanged, categoryChanged], axis=1)
+        categoryDropped = interimFrame.drop(['Category'], axis = 1)
+        transformed = pd.concat([categoryDropped, categoryChanged], axis=1)
     else:
         category = pd.DataFrame([], columns = ['Category'])
-        dropped = dataFrame.drop(['DayOfWeek', 'PdDistrict'], axis=1)
-        transformed = pd.concat([dropped, dayOfWeekChanged, pdDistrictChanged, category], axis=1)
+        transformed = pd.concat([interimFrame, category], axis=1)
         transformed['Category'].fillna(9999, inplace=True)
     return (transformed, enumIndex, categoryLabels)
-
-
-train = pd.read_csv("./data/train.csv",
-                    usecols = ['Category','DayOfWeek','PdDistrict','X','Y']
-                    )
-test = pd.read_csv("./data/test.csv",
-                   usecols = ['DayOfWeek','PdDistrict','X','Y']
-                   )
 
 #unindexes class labels to descriptions
 def unIndex(labels, enumIndex):
     return [labels[index] for index in enumIndex]
 
+def findMissingLabels(masterLabels, predictedLabels):
+    return masterLabels - set(predictedLabels)
+
+train = pd.read_csv("../data/train.csv",
+                    usecols = ['Dates','Category','DayOfWeek','PdDistrict','X','Y'],
+                    parse_dates = [1]
+                    )
+test = pd.read_csv("../data/test.csv",
+                   usecols = ['Dates','DayOfWeek','PdDistrict','X','Y'],
+                   parse_dates = [1]
+                   )
+
 trainingWrangled, enumIndexTraining, categoryLabelsTraining = wrangle(train, True)
 testWrangled, enumIndexTest, categoryLabelsTest = wrangle(test, False)
 
+#model the data
 rf = RandomForestClassifier(n_estimators=100)
 rf.fit(trainingWrangled, enumIndexTraining)
-
 predicted = rf.predict(testWrangled)
 dfWithClass = pd.DataFrame(predicted, columns = ['Class'])
 final = pd.concat([testWrangled, dfWithClass], axis=1)
+#convert the enumerated class labels to descriptive labels
 classLabels = unIndex(categoryLabelsTraining, final['Class'])
 categoriesPredicted = pd.get_dummies(classLabels)
-categoriesPredicted.to_csv("./data/predictions.csv")
-print("Time taken:%.1f seconds" % (time.time() - startTime))
 
+#if there are any missing labels, append them to the end so that the output is complete as required by kaggle
+missingClasses = findMissingLabels(categoryLabelsTraining, classLabels)
+empty = pd.DataFrame(0, index = np.arange(len(classLabels)), columns = missingClasses)
 
-
-
-
-
+finalFormatted = pd.concat([categoriesPredicted, empty], axis=1)
+finalFormatted.to_csv("../data/predictions.csv")

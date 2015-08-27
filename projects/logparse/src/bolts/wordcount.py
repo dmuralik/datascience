@@ -8,7 +8,7 @@ from email.mime.text import MIMEText
 class WordCounter(Bolt):
 
     def initialize(self, conf, ctx):
-        nothing = 5
+        return
 
     def process(self, tup):
         msg = MIMEText('ERROR')
@@ -16,6 +16,7 @@ class WordCounter(Bolt):
         msg['From'] = 'noreply@caringbridge.org'
         msg['To'] = 'dmurali@caringbridge.org'
         mailSrv = smtplib.SMTP('localhost', 1025)
+
         line = tup.values[0]
         if 'ERROR' in set(line.split()):
             mailSrv.sendmail('noreply@caringbridge.org', ['dmurali@caringbridge.org'], msg.as_string())
