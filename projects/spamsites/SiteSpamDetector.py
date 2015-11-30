@@ -14,8 +14,13 @@ import time
 from sklearn.cross_validation import cross_val_score
 import matplotlib.pyplot as plt
 import seaborn as sns
+from sklearn.cross_validation import train_test_split
+
 
 get_ipython().magic('matplotlib inline')
+
+#set some intial vars
+algorithm = 'rf'
 
 def reportModelMetric(model, metric, trainingData, algo):
     if metric == 'featureImportance':
@@ -24,15 +29,17 @@ def reportModelMetric(model, metric, trainingData, algo):
     #format the important features predicted by the model
     features = pd.DataFrame(trainingData.columns.values, columns = ['Features'])
     importanceByFeature = pd.concat([features, modelMetric], axis = 1)
-    importanceByFeature.sort(['ModelMetric'], inplace = True, ascending = False)
+    importanceByFeature.sort_values(by = ['ModelMetric'], inplace = True, ascending = False)
     #write to file
     importanceByFeature.to_csv('../spamSiteFeatureImportance_'+algo+'.csv', index = False)
+    print('Output written to spamSiteFeatureImportance_'+algo+'.csv')
 
 def predictAndReport(algo, bestParams, train, test):
     if algo == 'rf':
-        predictor = RandomForestClassifier(min_samples_split = 7, n_estimators = 70, min_samples_leaf = 14)
+        predictor = RandomForestClassifier(min_samples_split = 16, n_estimators = 60, 
+                                           min_samples_leaf = 10)
     elif algo == 'knn':
-        predictor = KNeighborsClassifier(n_neighbors = 12, weights = 'distance')
+        predictor = KNeighborsClassifier(n_neighbors = 1, weights = 'distance')
     elif algo == 'logr':
         predictor = LogisticRegression()
     
@@ -41,17 +48,18 @@ def predictAndReport(algo, bestParams, train, test):
         coefficients = pd.DataFrame(predictor.coef_[0], columns = ['Coefficients'])
         features = pd.DataFrame(train.columns.values, columns = ['Features'])
         featureCoefficients = pd.concat([features, coefficients], axis = 1)
-        featureCoefficients.sort(['Coefficients'], inplace = True, ascending = False)
+        featureCoefficients.sort_values(by = ['Coefficients'], inplace = True, ascending = False)
         featureCoefficients.to_csv('../spamSiteFeatureCoefficients_'+algo+'.csv', index = False)
-        print(featureCoefficients)
+        print('Coefficients written to spamSiteFeatureCoefficients_'+algo+'.csv')
     predicted = predictor.predict(test)
     
     dfWithClass = pd.DataFrame(predicted, columns = ['predictedClass'])
     final = pd.concat([test, dfWithClass], axis=1)
     #take a look at the confusion matrix
-    print(pd.crosstab(final.predictedClass, final.isSpam, margins = True))
+    print(pd.crosstab(final.isSpam, final.predictedClass))
+    print("0s: %d, 1s: %d" %(np.sum((final.isSpam == 0) & (final.predictedClass == 0)), np.sum((final.isSpam == 1) & (final.predictedClass == 1))))
     print("Accuracy: %.3f" %float(np.sum(final.isSpam == final.predictedClass) / float(len(test))))
-    print("Precision: %.3f" %float(sum((final.isSpam == 1) & (final.predictedClass == 1)) / sum(final.isSpam == 1)))
+    print("Precision: %.3f" %float(np.sum((final.isSpam == 1) & (final.predictedClass == 1)) / np.sum(final.isSpam == 1)))
     if algo == 'rf':
         reportModelMetric(predictor, 'featureImportance', train, algo)
 
@@ -84,19 +92,22 @@ def searchBestModelParameters(algorithm, trainingData):
         # examine the best model
         bestRun.append({'score' : round(rand.best_score_,3), 'params' : rand.best_params_})
     print(max(bestRun, key=lambda x:x['score']))
-    return bestRun
+    return max(bestRun, key=lambda x:x['score'])
     
-#set some intial vars
-algorithm = 'logr'
+
 
 #read site
 rawSite = read_mongo(db = 'CB', collection = 'site', host = 'localhost', no_id = False)
 siteModified = rawSite.drop(['dismissedOnboarding', 'feedCounter', 'feedToken',
               'modules', 'password', 'theme', 'photoId', 'requestAccess',
-              'requestPassword', 'cm', 'bi', 'photo', 'goFundMe', 'lastName',
+              'requestPassword', 'bi', 'photo', 'goFundMe', 'lastName',
               'numAmps', 'partner', 'size', 'theme', 'createFormSessionId', 'allowList',
               'blockList', 'displayEmail', 'isPhotoOrderingFixed', 'healthCondition',
-              'spam', 'status', 'firstName', 'lastInvite'], axis = 1)
+              'spam', 'status', 'firstName', 'lastInvite', 'isDeleted',
+              'hasCommentFix','age'], axis = 1)
+viewPort = siteModified.cm.apply(pd.Series).fillna(-1)
+siteModified['hasJavaScriptOn'] = [0 if vp == -1 else 1 for vp in viewPort.vpw]
+siteModified.drop(['cm'], axis = 1, inplace = True)
 siteModified['descriptionLen'] = rawSite.description.str.len()
 siteModified.drop(['description'], axis = 1, inplace = True)
 siteModified['nameLen'] = rawSite.name.str.len()
@@ -104,26 +115,23 @@ siteModified.drop(['name'], axis = 1, inplace = True)
 siteModified['titleLen'] = rawSite.title.str.len()
 siteModified.drop(['title'], axis = 1, inplace = True)
 
-siteCreatedDayOrNight = ['Night' if(hr > 22 or hr <= 6) else 'Day' for hr in pd.DatetimeIndex(siteModified['createdAt']).hour]
+siteCreatedDayOrNight = ['Night' if(hr >= 22 or hr <= 6) else 'Day' for hr in pd.DatetimeIndex(siteModified['createdAt']).hour]
 siteModified['siteCreatedDayOrNight'] = siteCreatedDayOrNight
 siteModified.drop(['createdAt'], axis = 1, inplace = True)
-siteUpdatedDayOrNight = ['Night' if(hr > 22 or hr <= 6) else 'Day' for hr in pd.DatetimeIndex(siteModified['updatedAt']).hour]
+siteUpdatedDayOrNight = ['Night' if(hr >= 22 or hr <= 6) else 'Day' for hr in pd.DatetimeIndex(siteModified['updatedAt']).hour]
 siteModified['siteUpdatedDayOrNight'] = siteUpdatedDayOrNight
 siteModified.drop(['updatedAt'], axis = 1, inplace = True)
 
 siteModified.descriptionLen.replace(np.nan, -1, inplace = True)
-siteModified.age.replace(np.nan, 'blank', inplace = True)
-siteModified.hasCommentFix.replace(np.nan, 0, inplace = True)
 siteModified.hasVisitorInvite.replace(np.nan, 0, inplace = True)
-siteModified.isDeleted.replace(np.nan, 0, inplace = True)
 siteModified.isForSelf.replace(np.nan, 0, inplace = True)
 siteModified.isSearchable.replace(np.nan, 0, inplace = True)
 siteModified.isSpam.replace(np.nan, 0, inplace = True)
 siteModified.sawReCaptcha.replace(np.nan, 0, inplace = True)
 
-siteModified.rename(columns={'_id': 'siteId', 'isDeleted' : 'isSiteDeleted', 'sawReCaptcha' : 'sawReCaptchaSite', 'isSpam' : 'isSiteSpam'}, inplace=True)
+siteModified.rename(columns={'_id': 'siteId', 'sawReCaptcha' : 'sawReCaptchaSite', 'isSpam' : 'isSiteSpam'}, inplace=True)
 
-binarizedSites = pd.get_dummies(siteModified, columns = ['platform', 'privacy', 'age', 'siteCreatedDayOrNight', 'siteUpdatedDayOrNight'])
+binarizedSites = pd.get_dummies(siteModified, columns = ['platform', 'privacy', 'siteCreatedDayOrNight', 'siteUpdatedDayOrNight'])
 
 #print(siteModified.groupby(['siteUpdatedDayOrNight']).size())
 #read profile
@@ -136,16 +144,15 @@ profileModified = rawProfile.drop(['ampProfile', 'bio', 'cm', 'country', 'create
                 'tz', 'whitelistedByCustomerCare', 'handle', 'createdAt', 'updatedAt',
                 'lastActivity', 'lastJournalReply', 'ip', 'howFound', 'isStub', 'failedLoginAttempts',
                 'isMailSubscriber', 'spam', 'email', 'isSecure', 'isPrivate', 'isPublic',
-                'gender'], axis = 1)
+                'gender', 'isDeleted'], axis = 1)
 #emails = profileModified.email.apply(pd.Series)
 #emailDomains = pd.DataFrame(emails.domain.values, columns = ['emailDomain'])
 #withoutEmail = profileModified.drop(['email'], axis = 1)
 #withDomains = pd.concat([withoutEmail, emailDomains], axis = 1).fillna('blank')
 profileModified.sawReCaptcha.replace(np.nan, 0, inplace = True)
-profileModified.isDeleted.replace(np.nan, 0, inplace = True)
 profileModified.numNotifications.replace(np.nan, -1, inplace = True)
 
-profileModified.rename(columns={'_id': 'profileId', 'isDeleted' : 'isProfileDeleted', 'sawReCaptcha' : 'sawReCaptchaProfile'}, inplace=True)
+profileModified.rename(columns={'_id': 'profileId', 'sawReCaptcha' : 'sawReCaptchaProfile'}, inplace=True)
 
 #read site_profile
 rawSiteProfile = read_mongo(db = 'CB', collection = 'site_profile', host = 'localhost')
@@ -157,23 +164,24 @@ octSiteProfileSpam = pd.read_csv("/Users/dmurali/Documents/spamlist_round25_from
                     usecols = ['siteId','isSpam'])
 octSiteProfileSpam.rename(columns = {'isSpam':'isOctSpam'}, inplace = True)
 
+
 mergedSiteProfile = binarizedSites.merge(siteProfile, how='left', on = ['siteId'], sort = False).merge(profileModified, how='left', on = ['profileId'], sort = False).merge(octSiteProfileSpam, how='left', on = ['siteId'], sort = False)
 mergedSiteProfile['isSpam'] = np.where(mergedSiteProfile['isOctSpam'].isin(mergedSiteProfile['isSiteSpam']), 1, mergedSiteProfile['isSiteSpam'])
 
 mergedSiteProfile = mergedSiteProfile.convert_objects(convert_numeric=True)
 mergedSiteProfile.drop(['isSiteSpam', 'isOctSpam'], axis = 1, inplace = True)
 
-isSpamTest = mergedSiteProfile.loc[mergedSiteProfile['isSpam'] == 1][:340]
-isNotSpamTest = mergedSiteProfile.loc[mergedSiteProfile['isSpam'] == 0][:6300]
-test = pd.concat([isSpamTest, isNotSpamTest])
-train = mergedSiteProfile[~mergedSiteProfile.siteId.isin(test.siteId)]
+train, test, spamLabelTrain, spamLabelTest = train_test_split(mergedSiteProfile, mergedSiteProfile['isSpam'], test_size = 0.4)       
+#isSpamTest = mergedSiteProfile.loc[mergedSiteProfile['isSpam'] == 1][:350]
+#isNotSpamTest = mergedSiteProfile.loc[mergedSiteProfile['isSpam'] == 0][:6300]
+#test = pd.concat([isSpamTest, isNotSpamTest])
+#train = mergedSiteProfile[~mergedSiteProfile.siteId.isin(test.siteId)]
 
 train.drop(['siteId', 'profileId'], axis = 1, inplace = True)
 test.drop(['siteId', 'profileId'], axis = 1, inplace = True)
 train.fillna(-1, inplace = True)
 test.fillna(-1, inplace = True)
-
-train['visits'].hist(by = train['isSpam'])
+#train['visits'].hist(by = train['isSpam'])
 
 #plt.hist(train['visits'].values)
 #plt.title("Distribution")
@@ -185,7 +193,7 @@ bestParams = []
 
 #bestParams = searchBestModelParameters(algorithm, train)
 
-#predictAndReport(algorithm, bestParams, train, test)
+predictAndReport(algorithm, bestParams, train, test)
 
 
 

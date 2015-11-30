@@ -1,7 +1,7 @@
 
 # coding: utf-8
 
-# In[109]:
+# In[41]:
 
 import requests, json
 import pandas as pd
@@ -28,22 +28,23 @@ for name in root.iter(elementPrefix+'name'):
     indicatorNames.append(name.text)
 genderIndicators = pd.DataFrame(indicatorId, columns = ['Id'])
 genderIndicators['Name'] = indicatorNames
-print(genderIndicators['Name'])
 
 countriesUrl = 'http://api.worldbank.org/countries?per_page=300&format=json'
 response = requests.post(countriesUrl)
 countries = pd.DataFrame(response.json()[1])
-
+print(genderIndicators)
 #264 (countries) *54(1960 until 2014)*50(indicators) = 712800 data points just for gender statistics - 45mb
 #WDI - 45mb
 #EdStats - 165mb
 #World Development Report 2013 on Jobs Statistical Tables - 1 mb
 #Global Financial Inclusion (Global Findex) Database - 17.5 mb
 
-#indicatorUrl = 'http://api.worldbank.org/countries/all/indicators/'
+indicatorUrl = 'http://api.worldbank.org/countries/all/indicators/FP.CPI.TOTL.ZG?format=json'
+response = requests.post(indicatorUrl)
+print(response.code)
 #for row in genderIndicators.itertuples():
-    #response = requests.post(indicatorUrl + row[1] + '?format=json')
-    #print(response.json())
+    #response = requests.post(indicatorUrl + row[1])
+    #print(response.content)
     #break
 
 

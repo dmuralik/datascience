@@ -102,6 +102,143 @@ plt.rcParams['font.size'] = 14
 plt.plot([1,2,3],[4,5,6])
 
 
+# In[24]:
+
+import pandas as pd
+import numpy as np
+df = pd.DataFrame({'A' : ['foo', 'bar', 'foo', 'bar',
+  'foo', 'bar', 'foo', 'foo'],
+  'B' : ['one', 'one', 'two', 'three',
+  'two', 'two', 'one', 'three'],
+               'C' : np.random.randn(8),
+          'D' : np.random.randn(8)})
+df.loc[df.B == 'one' or df.A == 'bar', 'A'] = 1
+df
+
+
+# In[38]:
+
+import pandas as pd
+import numpy as np
+df = pd.DataFrame({'A':[1,0,1,1,0,1,1,0]})
+b = pd.DataFrame([1,1,1,1,1,1], columns = ['B'])
+final = pd.concat([df, b], axis = 1)
+final['C'] = np.where(final['B'].isin(final['A']), 1, final['A'])
+final
+
+
+# In[70]:
+
+import re
+
+myString = " http://"
+
+r = re.compile(r"(http://+)|(www+)")
+res = r.search(myString)
+if res is None :
+    print('non')
+else:
+    print('not non')
+
+
+# In[73]:
+
+import pandas as pd
+
+a = pd.DataFrame({'A' : ['A1','A2','A3']})
+b = pd.DataFrame({'B' : ['B1','B2','B3']})
+a['ab'] = a['A'] + ' ' + b['B']
+a
+
+
+
+
+
+# In[178]:
+
+import numpy as np
+import seaborn as sb
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import TfidfTransformer
+import matplotlib.pyplot as plt
+
+get_ipython().magic('matplotlib inline')
+text = ['poem to poem then was below']
+text.append('going to be interesting cash')
+tx = CountVectorizer().fit(text)
+vect = tx.transform(text).toarray()
+summed = np.sum(vect,axis = 0)
+wordCount = sorted(zip(summed,tx.get_feature_names()), reverse = True)
+#wordCount[0][1]
+#print(sorted(wordCount, reverse = True)[:2])
+#tfidf_transformer = TfidfTransformer().fit(vect)
+#tfidf4 = tfidf_transformer.transform(vect)
+df = pd.DataFrame(wordCount, columns = ['Count', 'Word'])
+
+sb.barplot(x='Word', y='Count', data = df)
+
+
+# In[2]:
+
+from textblob import TextBlob
+from nltk.corpus import stopwords
+def splitIntoLemmas(message):
+    message = message.lower()
+    words = TextBlob(message).words
+    # for each word, take its "base form" = lemma 
+    return [word.lemma for word in words]
+
+msg = 'was in there wanting doing'
+splitIntoLemmas(msg)
+stopwords.words("english")
+
+
+# In[11]:
+
+import pandas as pd
+import numpy as np
+
+df = pd.DataFrame({'A' : ['foo one', 'bar two', 'foo three', 'bar two',
+  'foo', 'bar eight', 'foo', 'foo'],
+               'C' : np.random.randn(8),
+          'D' : np.random.randn(8)})
+df[df['A'].str.contains('two')]
+
+
+# In[32]:
+
+from numpy import matrix
+import numpy as np
+from scipy.sparse import csr_matrix
+import pandas as pd
+row = np.array([0, 0, 1, 2, 2, 2])
+col = np.array([0, 2, 2, 0, 1, 2])
+data = np.array([0.456, 0.3412544646464, 3.33, 4.6745, 5.54, 6.663])
+m = csr_matrix((data, (row, col)), shape=(3, 3))
+print(type(m))
+print(type(m.toarray()))
+print(m[0])
+print(m.toarray()[0])
+
+
+# In[49]:
+
+import pandas as pd
+
+df = pd.DataFrame({'A' : ['1', '2', '3', '4',
+  '5', '6', '7', '8'],
+               'C' : np.random.randn(8),
+          'D' : np.random.randn(8)})
+df['A'] = df['A'].astype(int)
+df
+
+
+
+
+
+
+
+
 # In[ ]:
 
 
