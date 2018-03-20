@@ -14,3 +14,4 @@ Useful resources:
 * https://pushpullfork.com/build-an-instant-twitter-dashboard-with-just-a-little-code/ - hwo to build a twitter dashboard
 * https://github.com/henripal/labnotebook - visualization for deep learning
 * http://serialmentor.com/dataviz/ - fundamentals of visualization in R
+* http://blog.minitab.com/blog/statistics-and-quality-data-analysis/what-is-a-t-test-and-why-is-it-like-telling-a-kid-to-clean-up-that-mess-in-the-kitchen - t statistics
