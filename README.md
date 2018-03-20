@@ -13,3 +13,4 @@ Useful resources:
 * https://www.pg-versus-ms.com/ - postgresql vs microsoft sql
 * https://pushpullfork.com/build-an-instant-twitter-dashboard-with-just-a-little-code/ - hwo to build a twitter dashboard
 * https://github.com/henripal/labnotebook - visualization for deep learning
+* http://serialmentor.com/dataviz/ - fundamentals of visualization in R
